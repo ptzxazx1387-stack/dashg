@@ -1,6 +1,7 @@
 #include "memory.h"
 #include <TlHelp32.h>
 #include <Psapi.h>
+#include <string.h>
 
 bool memory::attach(const wchar_t* process_name) {
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -8,7 +9,7 @@ bool memory::attach(const wchar_t* process_name) {
     PROCESSENTRY32 pe = { sizeof(pe) };
     if (Process32First(snap, &pe)) {
         do {
-            if (_wcsicmp(pe.szExeFile, process_name) == 0) {
+            if (_stricmp(pe.szExeFile, "RustClient.exe") == 0) {
                 process_id = pe.th32ProcessID;
                 CloseHandle(snap);
                 process_handle = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION, FALSE, process_id);
@@ -35,7 +36,7 @@ uintptr_t memory::get_module_base(const wchar_t* module_name) {
     MODULEENTRY32 me = { sizeof(me) };
     if (Module32First(snap, &me)) {
         do {
-            if (_wcsicmp(me.szModule, module_name) == 0) {
+            if (_stricmp(me.szModule, "GameAssembly.dll") == 0) {
                 CloseHandle(snap);
                 return (uintptr_t)me.modBaseAddr;
             }
