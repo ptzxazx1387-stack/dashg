@@ -105,7 +105,7 @@ void fast_thread() {
 }
 
 int main() {
-    if (!memory::attach(L"RustClient.exe")) {
+    if (!memory::attach()) {
         MessageBoxA(0, "Game not found", "Error", MB_OK);
         return 1;
     }
