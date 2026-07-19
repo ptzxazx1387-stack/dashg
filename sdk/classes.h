@@ -18,7 +18,8 @@ namespace EntityList {
         uintptr_t game_asm = memory::game_assembly_base;
         if (!game_asm) return 0;
 
-        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xFB99108 + 0xB8);
+        // BaseNetworkable typeinfo = 0xfd36298 (از دامپ شما)
+        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xfd36298 + 0xB8);
         uintptr_t wrapper = memory::read<uintptr_t>(static_fields + 0x8);
         uintptr_t client_entities = decryption::base_networkable_0(wrapper);
         return client_entities;
@@ -48,9 +49,10 @@ class Camera {
 public:
     static uintptr_t GetMainCamera() {
         uintptr_t game_asm = memory::game_assembly_base;
-        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xFC25F88 + 0xB8);
-        uintptr_t cam_obj_handle = memory::read<uintptr_t>(static_fields + 0x38);
-        uintptr_t cam_native = memory::read<uintptr_t>(cam_obj_handle + 0x10);
+        // MainCamera typeinfo = 0xfd0a5c0 (از دامپ شما)
+        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xfd0a5c0 + 0xB8);
+        uintptr_t cam_obj_handle = memory::read<uintptr_t>(static_fields + 0x28); // instance = 0x28
+        uintptr_t cam_native = memory::read<uintptr_t>(cam_obj_handle + 0x10);   // buffer = 0x10
         return cam_native;
     }
 
@@ -65,17 +67,20 @@ public:
     BasePlayer(uintptr_t addr) : address(addr) {}
 
     uintptr_t GetPlayerModel() {
-        return memory::read<uintptr_t>(address + 0x520);
+        // playerModel = 0x500 طبق دامپ جدید
+        return memory::read<uintptr_t>(address + 0x500);
     }
 
     Vector3 GetPosition() {
         uintptr_t model = GetPlayerModel();
         if (!model) return {};
+        // PlayerModel::position = 0x2f8 (طبق دامپ جدید)
         return memory::read<Vector3>(model + 0x2F8);
     }
 
     std::string GetName() {
-        uintptr_t name_obj = memory::read<uintptr_t>(address + 0x7B8);
+        // displayName = 0x6e0 (طبق دامپ جدید)
+        uintptr_t name_obj = memory::read<uintptr_t>(address + 0x6E0);
         if (!name_obj) return "";
         int length = memory::read<int>(name_obj + 0x10);
         if (length <= 0 || length > 64) return "";
@@ -87,18 +92,20 @@ public:
     }
 
     bool IsSleeping() {
+        // playerFlags = 0x6B8 (تغییر نکرده)
         uint32_t flags = memory::read<uint32_t>(address + 0x6B8);
         return (flags & 0x10) != 0;
     }
 
     uint64_t GetTeamID() {
+        // currentTeam = 0x538 (تغییر نکرده)
         return memory::read<uint64_t>(address + 0x538);
     }
 
     uintptr_t GetBoneTransforms() {
         uintptr_t model = GetPlayerModel();
         if (!model) return 0;
-        return memory::read<uintptr_t>(model + 0x98);
+        return memory::read<uintptr_t>(model + 0x98); // boneTransforms (در صورت نیاز)
     }
 
     Vector3 GetBonePosition(int bone_id) {
@@ -113,6 +120,8 @@ public:
 namespace LocalPlayer {
     inline uintptr_t Get() {
         uintptr_t game_asm = memory::game_assembly_base;
+        // این آفست باید بر اساس دامپ جدید باشد، فعلاً از مقدار قدیمی استفاده می‌کنیم
+        // اگر local_player typeinfo موجود باشد می‌توانیم جایگزین کنیم
         uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xFBD6028 + 0xB8);
         uintptr_t entity_handle = memory::read<uintptr_t>(static_fields + 0x20);
         return memory::read<uintptr_t>(entity_handle + 0x10);
