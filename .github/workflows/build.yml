@@ -17,6 +17,11 @@ jobs:
       with:
         submodules: true
 
+    - name: Update submodules to latest
+      run: |
+        git submodule update --init --recursive --remote
+        git submodule foreach git pull origin master
+
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.1
 
