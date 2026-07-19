@@ -2,9 +2,6 @@
 #include "imgui/imgui.h"
 #include <d3d9.h>
 
-// حذف: static LPDIRECT3DDEVICE9 g_pd3dDevice = NULL;
-// از extern تعریف‌شده در هدر استفاده می‌کنیم.
-
 static LPDIRECT3DVERTEXBUFFER9   g_pVB = NULL;
 static LPDIRECT3DINDEXBUFFER9    g_pIB = NULL;
 static LPDIRECT3DTEXTURE9        g_FontTexture = NULL;
@@ -94,7 +91,7 @@ void ImGui_ImplDX9_InvalidateDeviceObjects() {
 }
 
 bool ImGui_ImplDX9_Init(IDirect3DDevice9* device) {
-    g_pd3dDevice = device;  // اینجا دستگاه اصلی را می‌گیرد
+    g_pd3dDevice = device;
     if (!g_pd3dDevice) return false;
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -173,7 +170,7 @@ void ImGui_ImplDX9_RenderDrawData(ImDrawData* draw_data) {
             } else {
                 RECT r = { (LONG)(pcmd->ClipRect.x - clip_off.x), (LONG)(pcmd->ClipRect.y - clip_off.y), (LONG)(pcmd->ClipRect.z - clip_off.x), (LONG)(pcmd->ClipRect.w - clip_off.y) };
                 ctx->SetScissorRect(&r);
-                ctx->SetTexture(0, (IDirect3DTexture9*)pcmd->TextureId);
+                ctx->SetTexture(0, (IDirect3DTexture9*)pcmd->TextureID);
                 ctx->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, vtx_offset + pcmd->VtxOffset, (UINT)cmd_list->VtxBuffer.Size, idx_offset + pcmd->IdxOffset, pcmd->ElemCount / 3);
             }
         }
