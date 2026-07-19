@@ -3,7 +3,7 @@
 #include <Psapi.h>
 #include <string.h>
 
-bool memory::attach(const wchar_t* process_name) {
+bool memory::attach() {
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snap == INVALID_HANDLE_VALUE) return false;
     PROCESSENTRY32 pe = { sizeof(pe) };
