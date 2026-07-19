@@ -9,7 +9,7 @@ namespace memory {
     inline DWORD process_id = 0;
     inline uintptr_t game_assembly_base = 0;
 
-    bool attach(const wchar_t* process_name);
+    bool attach();
     void detach();
     uintptr_t get_module_base(const wchar_t* module_name);
 
