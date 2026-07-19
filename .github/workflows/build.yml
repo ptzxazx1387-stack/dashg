@@ -14,15 +14,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-      with:
-        submodules: true
 
-    - name: Force ImGui submodule to latest master
+    - name: Download ImGui
       run: |
-        cd imgui
-        git fetch origin
-        git checkout origin/master
-        cd ..
+        git clone --depth 1 https://github.com/ocornut/imgui.git imgui
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.1
