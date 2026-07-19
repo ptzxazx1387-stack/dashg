@@ -170,7 +170,7 @@ void ImGui_ImplDX9_RenderDrawData(ImDrawData* draw_data) {
             } else {
                 RECT r = { (LONG)(pcmd->ClipRect.x - clip_off.x), (LONG)(pcmd->ClipRect.y - clip_off.y), (LONG)(pcmd->ClipRect.z - clip_off.x), (LONG)(pcmd->ClipRect.w - clip_off.y) };
                 ctx->SetScissorRect(&r);
-                ctx->SetTexture(0, (IDirect3DTexture9*)pcmd->TexId);
+                ctx->SetTexture(0, (IDirect3DTexture9*)pcmd->TextureId);
                 ctx->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, vtx_offset + pcmd->VtxOffset, (UINT)cmd_list->VtxBuffer.Size, idx_offset + pcmd->IdxOffset, pcmd->ElemCount / 3);
             }
         }
