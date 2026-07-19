@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d9.h>
+#include "imgui/imgui.h"
 
 extern IDirect3DDevice9* g_pd3dDevice;
 
