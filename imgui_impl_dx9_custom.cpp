@@ -2,7 +2,9 @@
 #include "imgui/imgui.h"
 #include <d3d9.h>
 
-static LPDIRECT3DDEVICE9        g_pd3dDevice = NULL;
+// حذف: static LPDIRECT3DDEVICE9 g_pd3dDevice = NULL;
+// از extern تعریف‌شده در هدر استفاده می‌کنیم.
+
 static LPDIRECT3DVERTEXBUFFER9   g_pVB = NULL;
 static LPDIRECT3DINDEXBUFFER9    g_pIB = NULL;
 static LPDIRECT3DTEXTURE9        g_FontTexture = NULL;
@@ -92,7 +94,7 @@ void ImGui_ImplDX9_InvalidateDeviceObjects() {
 }
 
 bool ImGui_ImplDX9_Init(IDirect3DDevice9* device) {
-    g_pd3dDevice = device;
+    g_pd3dDevice = device;  // اینجا دستگاه اصلی را می‌گیرد
     if (!g_pd3dDevice) return false;
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
