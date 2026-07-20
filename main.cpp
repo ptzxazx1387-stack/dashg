@@ -21,6 +21,12 @@ namespace Cache {
     float fps = 0;
     std::mutex mtx;
     bool running = true;
+
+    // Debug
+    inline uintptr_t debug_entListPtr = 0;
+    inline uintptr_t debug_bufferList = 0;
+    inline uintptr_t debug_array = 0;
+    inline int debug_count = 0;
 }
 
 static LPDIRECT3D9              g_pD3D = NULL;
@@ -48,35 +54,45 @@ void slow_thread() {
             continue;
         }
 
-        // استفاده از اشاره‌گر مستقیم EntList
         uintptr_t entListPtr = memory::read<uintptr_t>(memory::game_assembly_base + 0x3c830a0);
-        if (!entListPtr) {
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-            continue;
-        }
+        uintptr_t bufferList = 0, entityArray = 0;
+        int count = 0;
 
-        uintptr_t bufferList = memory::read<uintptr_t>(entListPtr + 0x10);
-        uintptr_t entityArray = memory::read<uintptr_t>(bufferList + 0x10);
-        int count = memory::read<int>(bufferList + 0x18);
-
-        std::vector<PlayerData> tempPlayers;
-        for (int i = 0; i < count; i++) {
-            uintptr_t entity = memory::read<uintptr_t>(entityArray + 0x20 + (i * 8));
-            if (!entity) continue;
-
-            BasePlayer bp(entity);
-            PlayerData data;
-            data.address = entity;
-            data.name = bp.GetName();
-            data.isSleeping = bp.IsSleeping();
-            data.isValid = true;
-            tempPlayers.push_back(data);
+        if (entListPtr) {
+            bufferList = memory::read<uintptr_t>(entListPtr + 0x10);
+            if (bufferList) {
+                entityArray = memory::read<uintptr_t>(bufferList + 0x10);
+                count = memory::read<int>(bufferList + 0x18);
+            }
         }
 
         {
             std::lock_guard<std::mutex> lock(Cache::mtx);
+            Cache::debug_entListPtr = entListPtr;
+            Cache::debug_bufferList = bufferList;
+            Cache::debug_array = entityArray;
+            Cache::debug_count = count;
+        }
+
+        // اگر همه چی اوکی بود، entityها رو بخون
+        if (entityArray && count > 0) {
+            std::vector<PlayerData> tempPlayers;
+            for (int i = 0; i < count; i++) {
+                uintptr_t entity = memory::read<uintptr_t>(entityArray + 0x20 + (i * 8));
+                if (!entity) continue;
+
+                BasePlayer bp(entity);
+                PlayerData data;
+                data.address = entity;
+                data.name = bp.GetName();
+                data.isSleeping = bp.IsSleeping();
+                data.isValid = true;
+                tempPlayers.push_back(data);
+            }
+            std::lock_guard<std::mutex> lock(Cache::mtx);
             Cache::players = std::move(tempPlayers);
         }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }
@@ -129,6 +145,17 @@ int main() {
         ImGui_ImplDX9_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+
+        // Debug info
+        {
+            char buf[256];
+            sprintf_s(buf, "entListPtr: 0x%llX", Cache::debug_entListPtr);
+            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 110), IM_COL32(255,255,0,255), buf);
+            sprintf_s(buf, "bufferList: 0x%llX", Cache::debug_bufferList);
+            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 130), IM_COL32(255,255,0,255), buf);
+            sprintf_s(buf, "entityArray: 0x%llX, count: %d", Cache::debug_array, Cache::debug_count);
+            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 150), IM_COL32(255,255,0,255), buf);
+        }
 
         {
             std::vector<PlayerData> localPlayers;
