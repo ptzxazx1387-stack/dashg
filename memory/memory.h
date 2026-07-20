@@ -12,6 +12,7 @@ namespace memory {
     bool attach();
     void detach();
     uintptr_t get_module_base(const wchar_t* module_name);
+    std::wstring get_module_path(const wchar_t* module_name); // جدید
 
     template<typename T>
     T read(uintptr_t address) {
@@ -28,17 +29,5 @@ namespace memory {
     bool read_raw(uintptr_t address, void* buffer, size_t size);
     bool write_raw(uintptr_t address, const void* buffer, size_t size);
 
-    template<typename T>
-    T read_chain(uintptr_t base, const std::vector<uintptr_t>& offsets) {
-        uintptr_t cur = base;
-        for (size_t i = 0; i < offsets.size(); ++i) {
-            if (i == offsets.size() - 1)
-                return read<T>(cur + offsets[i]);
-            cur = read<uintptr_t>(cur + offsets[i]);
-            if (!cur || cur == UINTPTR_MAX) return T{};
-        }
-        return T{};
-    }
-
-    uintptr_t resolve_gchandle(uint32_t handle); // دیگر استفاده نمی‌شه
+    uintptr_t resolve_gchandle(uint32_t handle);
 }
