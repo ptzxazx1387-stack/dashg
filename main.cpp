@@ -15,6 +15,14 @@
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(lib, "dwmapi.lib")
 
+namespace Cache {
+    std::vector<PlayerData> players;
+    Matrix viewMatrix;
+    float fps = 0;
+    std::mutex mtx;
+    bool running = true;
+}
+
 static LPDIRECT3D9              g_pD3D = NULL;
 IDirect3DDevice9* g_pd3dDevice = NULL;
 static D3DPRESENT_PARAMETERS    g_d3dpp = {};
@@ -30,6 +38,66 @@ bool CreateDeviceD3D(HWND hWnd) {
     g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
     if (g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &g_d3dpp, &g_pd3dDevice) < 0) return false;
     return true;
+}
+
+void slow_thread() {
+    while (Cache::running) {
+        if (!memory::game_assembly_base) {
+            memory::game_assembly_base = memory::get_module_base(L"GameAssembly.dll");
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            continue;
+        }
+
+        // استفاده از اشاره‌گر مستقیم EntList
+        uintptr_t entListPtr = memory::read<uintptr_t>(memory::game_assembly_base + 0x3c830a0);
+        if (!entListPtr) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            continue;
+        }
+
+        uintptr_t bufferList = memory::read<uintptr_t>(entListPtr + 0x10);
+        uintptr_t entityArray = memory::read<uintptr_t>(bufferList + 0x10);
+        int count = memory::read<int>(bufferList + 0x18);
+
+        std::vector<PlayerData> tempPlayers;
+        for (int i = 0; i < count; i++) {
+            uintptr_t entity = memory::read<uintptr_t>(entityArray + 0x20 + (i * 8));
+            if (!entity) continue;
+
+            BasePlayer bp(entity);
+            PlayerData data;
+            data.address = entity;
+            data.name = bp.GetName();
+            data.isSleeping = bp.IsSleeping();
+            data.isValid = true;
+            tempPlayers.push_back(data);
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(Cache::mtx);
+            Cache::players = std::move(tempPlayers);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+}
+
+void fast_thread() {
+    while (Cache::running) {
+        uintptr_t camera = Camera::GetMainCamera();
+        Matrix vMatrix;
+        for (int r = 0; r < 4; r++) for (int c = 0; c < 4; c++) vMatrix.m[r][c] = 0.0f;
+        if (camera) vMatrix = Camera::GetViewMatrix(camera);
+
+        {
+            std::lock_guard<std::mutex> lock(Cache::mtx);
+            Cache::viewMatrix = vMatrix;
+            for (auto& player : Cache::players) {
+                BasePlayer bp(player.address);
+                player.position = bp.GetPosition();
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
 }
 
 int main() {
@@ -48,6 +116,9 @@ int main() {
     ImGui_ImplDX9_Init(g_pd3dDevice);
     ImGui_ImplWin32_Init(Overlay::hwnd);
 
+    std::thread(slow_thread).detach();
+    std::thread(fast_thread).detach();
+
     while (true) {
         HWND gameHwnd = FindWindowA("UnityWndClass", "Rust");
         if (gameHwnd) Overlay::UpdatePosition(gameHwnd);
@@ -59,19 +130,21 @@ int main() {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // --- تست نهایی: اشاره‌گر مستقیم EntList از دامپر ---
-        uintptr_t entListPtr = memory::read<uintptr_t>(memory::game_assembly_base + 0x3c830a0);
+        {
+            std::vector<PlayerData> localPlayers;
+            Matrix localMatrix;
+            float localFps;
+            {
+                std::lock_guard<std::mutex> lock(Cache::mtx);
+                localPlayers = Cache::players;
+                localMatrix = Cache::viewMatrix;
+                localFps = ImGui::GetIO().Framerate;
+            }
 
-        char buf[256];
-        sprintf_s(buf, "Base: 0x%llX", memory::game_assembly_base);
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 30), IM_COL32(255,255,255,255), buf);
-
-        sprintf_s(buf, "EntListPtr: 0x%llX", entListPtr);
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 50), IM_COL32(0,255,0,255), buf);
-
-        sprintf_s(buf, "Test OK");
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 70), IM_COL32(255,0,0,255), buf);
-        // --- پایان تست ---
+            RECT rect;
+            GetClientRect(Overlay::hwnd, &rect);
+            ESP::Render(localPlayers, localMatrix, rect.right - rect.left, rect.bottom - rect.top, localFps);
+        }
 
         ImGui::EndFrame();
         g_pd3dDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -90,6 +163,7 @@ int main() {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
+    Cache::running = false;
     ImGui_ImplDX9_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
