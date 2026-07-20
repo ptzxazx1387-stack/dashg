@@ -56,14 +56,7 @@ bool memory::write_raw(uintptr_t address, const void* buffer, size_t size) {
     return WriteProcessMemory(process_handle, (LPVOID)address, buffer, size, &bytesWritten) && bytesWritten == size;
 }
 
+// دیگر استفاده نمی‌شه
 uintptr_t memory::resolve_gchandle(uint32_t handle) {
-    static uintptr_t gc_table = 0;
-    if (!gc_table) {
-        gc_table = game_assembly_base + 0x100C22A0;
-    }
-    uint32_t index = handle >> 3;
-    uintptr_t slot = read<uintptr_t>(gc_table + index * 8);
-    if (slot & 1)
-        return slot & ~1;
-    return slot;
+    return 0;
 }
