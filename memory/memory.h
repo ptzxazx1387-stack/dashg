@@ -40,5 +40,5 @@ namespace memory {
         return T{};
     }
 
-    uintptr_t resolve_gchandle(uint32_t handle);
+    uintptr_t resolve_gchandle(uint32_t handle); // دیگر استفاده نمی‌شه
 }
