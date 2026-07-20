@@ -59,21 +59,27 @@ int main() {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // --- تست سلامت ---
+        // --- تست TOD_Sky (همیشه فعال) ---
         uintptr_t game_asm = memory::game_assembly_base;
-        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xfd0a5c0 + 0xB8);
-        uintptr_t cam_obj_handle = memory::read<uintptr_t>(static_fields + 0x28);
-        uintptr_t cam_native = memory::read<uintptr_t>(cam_obj_handle + 0x10);
+        uintptr_t tod_static = memory::read<uintptr_t>(game_asm + 0xfcebc70 + 0xb8);
+        uintptr_t tod_instance = memory::read<uintptr_t>(tod_static + 0x20);
+        float cycle = 0.0f;
+        if (tod_instance) {
+            cycle = memory::read<float>(tod_instance + 0x40); // Cycle
+        }
 
         char buf[256];
-        sprintf_s(buf, "Camera: 0x%llX", cam_native);
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 30), IM_COL32(0,255,0,255), buf);
-
         sprintf_s(buf, "Base: 0x%llX", game_asm);
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 50), IM_COL32(255,255,255,255), buf);
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 30), IM_COL32(255,255,255,255), buf);
 
-        sprintf_s(buf, "Test OK"); // نشون میده رندر کار می‌کنه
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 70), IM_COL32(255,0,0,255), buf);
+        sprintf_s(buf, "TOD static: 0x%llX", tod_static);
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 50), IM_COL32(255,255,0,255), buf);
+
+        sprintf_s(buf, "TOD instance: 0x%llX", tod_instance);
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 70), IM_COL32(255,255,0,255), buf);
+
+        sprintf_s(buf, "Cycle: %.2f", cycle);
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 90), IM_COL32(0,255,0,255), buf);
         // --- پایان تست ---
 
         ImGui::EndFrame();
