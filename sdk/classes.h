@@ -15,28 +15,20 @@ struct PlayerData {
 
 namespace EntityList {
     inline uintptr_t get_client_entities() {
-        uintptr_t game_asm = memory::game_assembly_base;
-        if (!game_asm) return 0;
+        return memory::read<uintptr_t>(memory::game_assembly_base + 0x3c830a0);
+    }
     
-        // ✅ آدرس درست Typeinfo از دامپر:
-        //    ListComponent_PlayerModel_C = 0xfd187d0
-        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xfd187d0 + 0xB8);
-        uintptr_t wrapper = memory::read<uintptr_t>(static_fields + 0x8);
-        uintptr_t client_entities = decryption::base_networkable_0(wrapper);
-        return client_entities;
-    }
     inline uintptr_t get_list_dict(uintptr_t client_entities) {
-        uintptr_t parent = memory::read<uintptr_t>(client_entities + 0x10);
-        return decryption::base_networkable_1(parent);
+        return client_entities; // اگه مستقیم اشاره‌گر به لیست بود، نه دیکشنری
     }
-
-    inline uintptr_t get_entity_array(uintptr_t list_dict) {
-        uintptr_t buffer_list = memory::read<uintptr_t>(list_dict + 0x10);
+    
+    inline uintptr_t get_entity_array(uintptr_t list_ptr) {
+        uintptr_t buffer_list = memory::read<uintptr_t>(list_ptr + 0x10);
         return memory::read<uintptr_t>(buffer_list + 0x10);
     }
-
-    inline int get_entity_count(uintptr_t list_dict) {
-        uintptr_t buffer_list = memory::read<uintptr_t>(list_dict + 0x10);
+    
+    inline int get_entity_count(uintptr_t list_ptr) {
+        uintptr_t buffer_list = memory::read<uintptr_t>(list_ptr + 0x10);
         return memory::read<int>(buffer_list + 0x18);
     }
 
