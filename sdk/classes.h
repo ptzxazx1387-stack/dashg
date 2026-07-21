@@ -1,3 +1,6 @@
+// ========================================================================
+// UPDATED sdk/classes.h - با افست‌های جدید (جولای 2026)
+// ========================================================================
 #pragma once
 #include "decryption.h"
 #include "../memory/memory.h"
@@ -18,21 +21,23 @@ namespace EntityList {
         uintptr_t game_asm = memory::game_assembly_base;
         if (!game_asm) return 0;
 
-        // BaseNetworkable typeinfo = 0xfd36298 (از دامپ شما)
-        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xfd36298 + 0xB8);
+        // BaseNetworkable typeinfo = 0xFB99108 (AFTAB)
+        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xFB99108 + 0xB8);
         uintptr_t wrapper = memory::read<uintptr_t>(static_fields + 0x8);
-        uintptr_t client_entities = decryption::base_networkable_0(wrapper);
-        return client_entities;
+        // Decrypt base_networkable_0 (client_entities)
+        return decryption::base_networkable_0(wrapper);
     }
 
     inline uintptr_t get_list_dict(uintptr_t client_entities) {
         uintptr_t parent = memory::read<uintptr_t>(client_entities + 0x10);
+        // Decrypt base_networkable_1 (entity_list dictionary)
         return decryption::base_networkable_1(parent);
     }
 
     inline uintptr_t get_entity_array(uintptr_t list_dict) {
         uintptr_t buffer_list = memory::read<uintptr_t>(list_dict + 0x10);
-        return memory::read<uintptr_t>(buffer_list + 0x10);
+        uintptr_t array_handle = memory::read<uintptr_t>(buffer_list + 0x10);
+        return memory::resolve_gchandle((uint32_t)array_handle);
     }
 
     inline int get_entity_count(uintptr_t list_dict) {
@@ -49,15 +54,19 @@ class Camera {
 public:
     static uintptr_t GetMainCamera() {
         uintptr_t game_asm = memory::game_assembly_base;
-        // MainCamera typeinfo = 0xfd0a5c0 (از دامپ شما)
-        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xfd0a5c0 + 0xB8);
-        uintptr_t cam_obj_handle = memory::read<uintptr_t>(static_fields + 0x28); // instance = 0x28
-        uintptr_t cam_native = memory::read<uintptr_t>(cam_obj_handle + 0x10);   // buffer = 0x10
-        return cam_native;
+        // MainCamera typeinfo = 0xFC25F88 (AFTAB)
+        uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xFC25F88 + 0xB8);
+        uintptr_t cam_handle = memory::read<uintptr_t>(static_fields + 0x38); // instance = 0x38
+        if (!cam_handle) return 0;
+        return memory::read<uintptr_t>(cam_handle + 0x10); // Unity object cached_ptr = 0x10
     }
 
     static Matrix GetViewMatrix(uintptr_t camera) {
-        return memory::read<Matrix>(camera + 0x2FC);
+        return memory::read<Matrix>(camera + 0x2FC); // viewMatrix = 0x2FC
+    }
+
+    static Vector3 GetPosition(uintptr_t camera) {
+        return memory::read<Vector3>(camera + 0x444); // position = 0x444
     }
 };
 
@@ -67,20 +76,20 @@ public:
     BasePlayer(uintptr_t addr) : address(addr) {}
 
     uintptr_t GetPlayerModel() {
-        // playerModel = 0x500 طبق دامپ جدید
-        return memory::read<uintptr_t>(address + 0x500);
+        // playerModel = 0x520 (AFTAB)
+        return memory::read<uintptr_t>(address + 0x520);
     }
 
     Vector3 GetPosition() {
         uintptr_t model = GetPlayerModel();
         if (!model) return {};
-        // PlayerModel::position = 0x2f8 (طبق دامپ جدید)
+        // PlayerModel::position = 0x2F8 (AFTAB)
         return memory::read<Vector3>(model + 0x2F8);
     }
 
     std::string GetName() {
-        // displayName = 0x6e0 (طبق دامپ جدید)
-        uintptr_t name_obj = memory::read<uintptr_t>(address + 0x6E0);
+        // _displayName = 0x7B8 (AFTAB)
+        uintptr_t name_obj = memory::read<uintptr_t>(address + 0x7B8);
         if (!name_obj) return "";
         int length = memory::read<int>(name_obj + 0x10);
         if (length <= 0 || length > 64) return "";
@@ -92,20 +101,27 @@ public:
     }
 
     bool IsSleeping() {
-        // playerFlags = 0x6B8 (تغییر نکرده)
+        // playerFlags = 0x6B8 (AFTAB)
         uint32_t flags = memory::read<uint32_t>(address + 0x6B8);
         return (flags & 0x10) != 0;
     }
 
     uint64_t GetTeamID() {
-        // currentTeam = 0x538 (تغییر نکرده)
+        // currentTeam = 0x538 (AFTAB)
         return memory::read<uint64_t>(address + 0x538);
     }
 
     uintptr_t GetBoneTransforms() {
         uintptr_t model = GetPlayerModel();
         if (!model) return 0;
-        return memory::read<uintptr_t>(model + 0x98); // boneTransforms (در صورت نیاز)
+        // model->boneTransforms = 0x98 ? need to check, maybe 0x50 from Model class
+        // Use Model::boneTransforms = 0x50, but PlayerModel may have it elsewhere.
+        // For simplicity, we use the old method: read from PlayerModel + 0x98 (not confirmed)
+        // Better: use BaseEntity::model (0x1A8) and then Model::boneTransforms (0x50)
+        uintptr_t base_entity = address; // since BasePlayer inherits BaseEntity
+        uintptr_t model_ptr = memory::read<uintptr_t>(base_entity + 0x1A8); // BaseEntity::model = 0x1A8
+        if (!model_ptr) return 0;
+        return memory::read<uintptr_t>(model_ptr + 0x50); // Model::boneTransforms = 0x50
     }
 
     Vector3 GetBonePosition(int bone_id) {
@@ -120,10 +136,13 @@ public:
 namespace LocalPlayer {
     inline uintptr_t Get() {
         uintptr_t game_asm = memory::game_assembly_base;
-        // این آفست باید بر اساس دامپ جدید باشد، فعلاً از مقدار قدیمی استفاده می‌کنیم
-        // اگر local_player typeinfo موجود باشد می‌توانیم جایگزین کنیم
+        // LocalPlayer slot klass = 0xFBD6028 (AFTAB)
         uintptr_t static_fields = memory::read<uintptr_t>(game_asm + 0xFBD6028 + 0xB8);
-        uintptr_t entity_handle = memory::read<uintptr_t>(static_fields + 0x20);
-        return memory::read<uintptr_t>(entity_handle + 0x10);
+        if (!static_fields) return 0;
+        // self_static_off = 0x20 (or entity_field_off = 0x20)
+        uintptr_t local_handle = memory::read<uintptr_t>(static_fields + 0x20);
+        if (!local_handle) return 0;
+        // Decrypt local_player if needed? Actually it's not encrypted, it's a GCHandle.
+        return memory::resolve_gchandle((uint32_t)local_handle);
     }
 }
