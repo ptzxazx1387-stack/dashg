@@ -1,3 +1,6 @@
+// ========================================================================
+// UPDATED main.cpp - با اصلاحات برای پروسس و استفاده از دیکریپت‌ها
+// ========================================================================
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -44,8 +47,10 @@ void slow_thread() {
     while (Cache::running) {
         if (!memory::game_assembly_base) {
             memory::game_assembly_base = memory::get_module_base(L"GameAssembly.dll");
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            continue;
+            if (!memory::game_assembly_base) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                continue;
+            }
         }
 
         uintptr_t client_entities = EntityList::get_client_entities();
@@ -74,6 +79,7 @@ void slow_thread() {
             data.name = bp.GetName();
             data.isSleeping = bp.IsSleeping();
             data.isValid = true;
+            // position will be filled in fast thread
             tempPlayers.push_back(data);
         }
 
@@ -81,16 +87,17 @@ void slow_thread() {
             std::lock_guard<std::mutex> lock(Cache::mtx);
             Cache::players = std::move(tempPlayers);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
 
 void fast_thread() {
     while (Cache::running) {
         uintptr_t camera = Camera::GetMainCamera();
-        Matrix vMatrix;
-        for(int r=0; r<4; r++) for(int c=0; c<4; c++) vMatrix.m[r][c] = 0.0f;
-        if (camera) vMatrix = Camera::GetViewMatrix(camera);
+        Matrix vMatrix{};
+        if (camera) {
+            vMatrix = Camera::GetViewMatrix(camera);
+        }
 
         {
             std::lock_guard<std::mutex> lock(Cache::mtx);
@@ -100,22 +107,31 @@ void fast_thread() {
                 player.position = bp.GetPosition();
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
 int main() {
+    // Try to attach to Rust (multiple process names)
     if (!memory::attach()) {
-        MessageBoxA(0, "Game not found", "Error", MB_OK);
+        MessageBoxA(0, "Could not find Rust process (RustClient.exe or Rust.exe).", "Error", MB_OK);
         return 1;
     }
     memory::game_assembly_base = memory::get_module_base(L"GameAssembly.dll");
-
-    if (!Overlay::Init()) {
-        MessageBoxA(0, "failed to create the overlay", "pidor", MB_OKCANCEL);
+    if (!memory::game_assembly_base) {
+        MessageBoxA(0, "GameAssembly.dll not loaded yet.", "Error", MB_OK);
+        return 1;
     }
 
-    if (!CreateDeviceD3D(Overlay::hwnd)) return 1;
+    if (!Overlay::Init()) {
+        MessageBoxA(0, "Failed to create overlay window.", "Error", MB_OK);
+        return 1;
+    }
+
+    if (!CreateDeviceD3D(Overlay::hwnd)) {
+        MessageBoxA(0, "Failed to create D3D9 device.", "Error", MB_OK);
+        return 1;
+    }
 
     ImGui_ImplDX9_Init(g_pd3dDevice);
     ImGui_ImplWin32_Init(Overlay::hwnd);
