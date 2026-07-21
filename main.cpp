@@ -1,5 +1,5 @@
 // ========================================================================
-// UPDATED main.cpp - با اصلاحات برای پروسس و استفاده از دیکریپت‌ها
+// main.cpp (اصلاح شده برای انتظار بارگذاری GameAssembly.dll)
 // ========================================================================
 #include <iostream>
 #include <thread>
@@ -47,10 +47,8 @@ void slow_thread() {
     while (Cache::running) {
         if (!memory::game_assembly_base) {
             memory::game_assembly_base = memory::get_module_base(L"GameAssembly.dll");
-            if (!memory::game_assembly_base) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                continue;
-            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            continue;
         }
 
         uintptr_t client_entities = EntityList::get_client_entities();
@@ -79,7 +77,6 @@ void slow_thread() {
             data.name = bp.GetName();
             data.isSleeping = bp.IsSleeping();
             data.isValid = true;
-            // position will be filled in fast thread
             tempPlayers.push_back(data);
         }
 
@@ -114,13 +111,22 @@ void fast_thread() {
 int main() {
     // Try to attach to Rust (multiple process names)
     if (!memory::attach()) {
-        MessageBoxA(0, "Could not find Rust process (RustClient.exe or Rust.exe).", "Error", MB_OK);
+        MessageBoxA(0, "Could not find Rust process (RustClient.exe or Rust.exe).\nMake sure the game is running.", "Error", MB_OK);
         return 1;
     }
-    memory::game_assembly_base = memory::get_module_base(L"GameAssembly.dll");
-    if (!memory::game_assembly_base) {
-        MessageBoxA(0, "GameAssembly.dll not loaded yet.", "Error", MB_OK);
-        return 1;
+
+    // Wait for GameAssembly.dll to be loaded
+    int attempts = 0;
+    while (!memory::game_assembly_base) {
+        memory::game_assembly_base = memory::get_module_base(L"GameAssembly.dll");
+        if (!memory::game_assembly_base) {
+            if (attempts % 10 == 0) {
+                // Show message every 10 seconds to let user know we're waiting
+                MessageBoxA(0, "Waiting for GameAssembly.dll to load...\nMake sure Rust is fully loaded.\nPress OK to retry, Cancel to exit.", "Info", MB_OKCANCEL);
+            }
+            attempts++;
+            Sleep(1000);
+        }
     }
 
     if (!Overlay::Init()) {
