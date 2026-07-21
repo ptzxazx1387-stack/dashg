@@ -8,9 +8,11 @@ namespace ESP {
     inline void Render(const std::vector<PlayerData>& players, Matrix viewMatrix, int width, int height, float fps) {
         char buf[128];
 
+        // نمایش تعداد بازیکنان پیدا شده
         sprintf_s(buf, "Players: %d", (int)players.size());
         ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 30), IM_COL32(0, 255, 0, 255), buf);
 
+        // واترمارک اصلی
         sprintf_s(buf, "by .presidental - FPS: %.0f", fps);
         ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 50), IM_COL32(255, 255, 255, 255), buf);
 

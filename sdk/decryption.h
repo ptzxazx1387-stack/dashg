@@ -1,11 +1,14 @@
 #pragma once
 #include "../memory/memory.h"
 
-// در این نسخه نیازی به رمزگشایی نیست، چون مستقیماً از EntList RVA می‌خوانیم.
-// اما اگر برای بخش‌های دیگر لازم شد، توابع خالی باقی موندن.
 namespace decryption {
     inline uintptr_t base_networkable_0(uintptr_t wrapper) {
-        // اینجا دیگه استفاده نمی‌شه
-        return 0;
+        uint64_t rax = memory::read<uint64_t>(wrapper + 0x18);
+        return memory::resolve_gchandle((uint32_t)rax);
+    }
+
+    inline uintptr_t base_networkable_1(uintptr_t parent) {
+        uint64_t rax = memory::read<uint64_t>(parent + 0x18);
+        return memory::resolve_gchandle((uint32_t)rax);
     }
 }

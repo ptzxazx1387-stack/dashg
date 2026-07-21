@@ -21,13 +21,6 @@ namespace Cache {
     float fps = 0;
     std::mutex mtx;
     bool running = true;
-
-    // Debug
-    inline uintptr_t debug_entListPtr = 0;
-    inline uintptr_t debug_val0 = 0;
-    inline uintptr_t debug_val8 = 0;
-    inline uintptr_t debug_val10 = 0;
-    inline uintptr_t debug_val18 = 0;
 }
 
 static LPDIRECT3D9              g_pD3D = NULL;
@@ -55,26 +48,39 @@ void slow_thread() {
             continue;
         }
 
-        uintptr_t entListPtr = memory::read<uintptr_t>(memory::game_assembly_base + 0x3c830a0);
-        uintptr_t val0 = 0, val8 = 0, val10 = 0, val18 = 0;
+        uintptr_t client_entities = EntityList::get_client_entities();
+        if (!client_entities) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            continue;
+        }
 
-        if (entListPtr) {
-            val0  = memory::read<uintptr_t>(entListPtr);
-            val8  = memory::read<uintptr_t>(entListPtr + 0x8);
-            val10 = memory::read<uintptr_t>(entListPtr + 0x10);
-            val18 = memory::read<uintptr_t>(entListPtr + 0x18);
+        uintptr_t list_dict = EntityList::get_list_dict(client_entities);
+        if (!list_dict) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            continue;
+        }
+
+        uintptr_t entity_array = EntityList::get_entity_array(list_dict);
+        int count = EntityList::get_entity_count(list_dict);
+
+        std::vector<PlayerData> tempPlayers;
+        for (int i = 0; i < count; i++) {
+            uintptr_t entity = EntityList::get_entity(entity_array, i);
+            if (!entity) continue;
+
+            BasePlayer bp(entity);
+            PlayerData data;
+            data.address = entity;
+            data.name = bp.GetName();
+            data.isSleeping = bp.IsSleeping();
+            data.isValid = true;
+            tempPlayers.push_back(data);
         }
 
         {
             std::lock_guard<std::mutex> lock(Cache::mtx);
-            Cache::debug_entListPtr = entListPtr;
-            Cache::debug_val0 = val0;
-            Cache::debug_val8 = val8;
-            Cache::debug_val10 = val10;
-            Cache::debug_val18 = val18;
-            Cache::players.clear(); // entity list را فعلاً خالی کن تا چیز دیگه‌ای نشون نده
+            Cache::players = std::move(tempPlayers);
         }
-
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }
@@ -83,7 +89,7 @@ void fast_thread() {
     while (Cache::running) {
         uintptr_t camera = Camera::GetMainCamera();
         Matrix vMatrix;
-        for (int r = 0; r < 4; r++) for (int c = 0; c < 4; c++) vMatrix.m[r][c] = 0.0f;
+        for(int r=0; r<4; r++) for(int c=0; c<4; c++) vMatrix.m[r][c] = 0.0f;
         if (camera) vMatrix = Camera::GetViewMatrix(camera);
 
         {
@@ -127,21 +133,6 @@ int main() {
         ImGui_ImplDX9_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-
-        // Debug info
-        {
-            char buf[256];
-            sprintf_s(buf, "entListPtr: 0x%llX", Cache::debug_entListPtr);
-            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 110), IM_COL32(255,255,0,255), buf);
-            sprintf_s(buf, "[+0x0]: 0x%llX", Cache::debug_val0);
-            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 130), IM_COL32(255,255,0,255), buf);
-            sprintf_s(buf, "[+0x8]: 0x%llX", Cache::debug_val8);
-            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 150), IM_COL32(255,255,0,255), buf);
-            sprintf_s(buf, "[+0x10]: 0x%llX", Cache::debug_val10);
-            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 170), IM_COL32(255,255,0,255), buf);
-            sprintf_s(buf, "[+0x18]: 0x%llX", Cache::debug_val18);
-            ImGui::GetForegroundDrawList()->AddText(ImVec2(10, 190), IM_COL32(255,255,0,255), buf);
-        }
 
         {
             std::vector<PlayerData> localPlayers;
